@@ -24,11 +24,16 @@ body {
     position: relative;
     font-family: 'Karla', 'sans-serif';
     color: var(--primary-color);
+    min-height: 100vh;
 }
 
 #root {
-    min-height: 100vh;
-    display: grid;
+    min-height: 95vh;
+    /* display: grid; */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
     width: 100%;
     max-width: 600px;
     z-index: 2;
@@ -73,6 +78,10 @@ p {
     margin: 0;
 }
 
+h1{
+    padding-top: 1em;
+}
+
 /* -------------- */
 /* Button Styling */
 /* -------------- */
@@ -85,6 +94,16 @@ button{
     width: 160px;
     border-radius: 15px;
     font-size: 1rem;
+    cursor: pointer;
+}
+
+button:active{
+    opacity: 0.5;
+}
+
+button:disabled{
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 
 
@@ -144,9 +163,11 @@ button{
     margin-top: 1em;
 }
 
+
 .home .error-msg {
     color: #da4040;
     font-size: 1rem;
+    text-align: center;
 }
 
 /* ---- */
@@ -154,11 +175,19 @@ button{
 /* ---- */
 
 .question-form {
-    align-self: center;
+    align-self: end;
     width: 100%;
+    min-height: 60vh;
     display: flex;
     flex-direction: column;
     padding: 1.5em 1em;
+}
+
+.question-form-inner {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
 }
 
 .questions-outer-container{
@@ -189,10 +218,75 @@ button{
     border: 1px solid var(--primary-color);
     border-radius: 12px;
     padding: 0.3em 1em;
+    cursor: pointer;
 }
 
+.question-form input:disabled + label{
+    cursor: not-allowed;
+}
+
+.question-form label.selected{
+    border: 1px solid var(--selected-option-color);
+    background-color: var(--selected-option-color);
+}
+
+
+.question-form label.correct{
+    border: 1px solid var(--correct-answer-color);
+    background-color: var(--correct-answer-color);
+}
+
+
+.question-form label.wrong{
+    border: 1px solid var(--wrong-answer-color);
+    background-color: var(--wrong-answer-color);
+    opacity: 0.5;
+}
+
+.question-form label.selectedReveal{
+    border: 2px solid black; /* Override correct or wrongly select*/
+}
+
+/* ---------------- */
+/* Action-container */
+/* ---------------- */
+.action-container{
+    margin-bottom: 1.5em;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.action-container .error-msg {
+    margin-top: 0.5em;
+    color: #da4040;
+    font-size: 1rem;
+    text-align: center;
+}
+
+/* ------------ */
+/* Check Answer */
+/* ------------ */
 .check-answer-btn {
     border-radius: 10px;
-    margin-top: 1.5em;
     align-self: center;
 }
+
+/* ------- */
+/* Results */
+/* ------- */
+.score-msg{
+    text-align: center;
+    font-size: 1.3rem;
+    font-weight: 600;
+}
+
+.end-action-container{
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-top: 1em;
+    gap: 0.5em 0.8em;
+}
+

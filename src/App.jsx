@@ -10,46 +10,53 @@ export function App() {
     // Derived State
     const isGameStart = questions.results.length > 0    // The game is considered started if the questions are populated
 
+    // Static value
+    // Determine error messages
+    const errorMsg = ["Success", "No Results", "Invalid Parameter", "Token Not Found", "Token Empty", "Rate Limit"]
+
     // -----------------
     // Function for Home
     // -----------------
-    function handleStart(formData) {
 
-        async function fetchQuestions() {
-            const amount = formData.get('numOfQuestions')
-            const difficulty = formData.get('difficulty')
-
-            let apiUrl = ""
-            if (formData.get('category') != 'Mixed') {
-                const category = categories.filter((category) => {
-                    return category.name === formData.get('category')
-                })[0].id
-
-                apiUrl = `https://opentdb.com/api.php?amount=${amount}&category=${category}&difficulty=${difficulty}`
-            }
-            else {
-                apiUrl = `https://opentdb.com/api.php?amount=${amount}&difficulty=${difficulty}`
-            }
-
-            const res = await fetch(apiUrl)
-            const data = await res.json()
-            if (!res.ok) {
-                throw new Error(`Fail to fetch questions.`)
-            }
-
-            // Decide how to arrange answers to the data before setting
-            data.results = data.results.map((entry) => {
-                const randomIdx = Math.floor(Math.random() * (entry.incorrect_answers.length + 1))
-                const answers = [...entry.incorrect_answers]
-                answers.splice(randomIdx, 0, entry.correct_answer)
-                entry.answers = answers
-                return entry
-            })
-            setQuestions(data)
-
+    async function fetchQuestions(inputAmount, inputDifficulty, inputCategory, availableCategories) {
+        console.log('Fetching...')
+        let apiUrl = ""
+        let categoryId = null
+        if (inputCategory != 'Mixed') {
+            categoryId = availableCategories.filter((category) => {
+                return category.name === inputCategory
+            })[0].id
+            apiUrl = `https://opentdb.com/api.php?amount=${inputAmount}&category=${categoryId}&difficulty=${inputDifficulty}`
         }
-        fetchQuestions()
+        else {
+            apiUrl = `https://opentdb.com/api.php?amount=${inputAmount}&difficulty=${inputDifficulty}`
+        }
+        const res = await fetch(apiUrl)
+        const data = await res.json()
+        if (!res.ok) {
+            console.log(data)
+            return data
+        }
 
+        // Decide how to arrange answers to the data before setting
+        data.results = data.results.map((entry) => {
+            const randomIdx = Math.floor(Math.random() * (entry.incorrect_answers.length + 1))
+            const answers = [...entry.incorrect_answers]
+            answers.splice(randomIdx, 0, entry.correct_answer)
+            entry.answers = answers
+            return entry
+        })
+
+        return data
+    }
+
+    function setQuestionsInHome(data){
+        setQuestions(data)
+    }
+
+
+    function handleHome(){
+        setQuestions({ results: [] })
     }
 
 
@@ -82,11 +89,17 @@ export function App() {
             {isGameStart
                 ? <Quiz
                     questions={questions}
+                    fetchQuestions={fetchQuestions}
+                    categories={categories}
+                    errorMsg={errorMsg}
+                    handleHome={handleHome}
                 />
                 : <Home
-                    handleStart={handleStart}
+                    fetchQuestions={fetchQuestions}
+                    setQuestionsInHome={setQuestionsInHome}
                     questions={questions}
                     categories={categories}
+                    errorMsg={errorMsg}
                 />
             }
         </>

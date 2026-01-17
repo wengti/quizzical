@@ -1,4 +1,5 @@
+const a ={
+    'a': 1, 'b':2
+}
 
-fetch('https://opentdb.com/api.php?amount=10')
-    .then(res => res.json())
-    .then(data => console.log(data))
+console.log(Object.values(a))
