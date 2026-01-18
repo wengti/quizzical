@@ -36,7 +36,7 @@ export function Home(props) {
     return (
         <section className='home'>
             <h1>Quizzical</h1>
-            <p>Explore the world of unknown through quizzes!</p>
+            <p className='subtitle bottom-subtitle'>Win by scoring more than 50% and within time of 5s per questions.</p>
 
             <form className='quiz-type-form' action={handleStart}>
 
@@ -48,8 +48,8 @@ export function Home(props) {
                     defaultValue=""
                 >
                     <option value="" disabled>--- Please choose an option ---</option>
-                    {categorySelectElements}
                     <option value="Mixed">Mixed</option>
+                    {categorySelectElements}
                 </select>
 
 

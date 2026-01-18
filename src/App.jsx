@@ -20,6 +20,7 @@ export function App() {
 
     async function fetchQuestions(inputAmount, inputDifficulty, inputCategory, availableCategories) {
         console.log('Fetching...')
+
         let apiUrl = ""
         let categoryId = null
         if (inputCategory != 'Mixed') {
@@ -34,26 +35,25 @@ export function App() {
         const res = await fetch(apiUrl)
         const data = await res.json()
         if (!res.ok) {
-            console.log(data)
             return data
         }
 
         // Decide how to arrange answers to the data before setting
         data.results = data.results.map((entry) => {
-            const randomIdx = Math.floor(Math.random() * (entry.incorrect_answers.length + 1))
-            const answers = [...entry.incorrect_answers]
-            answers.splice(randomIdx, 0, entry.correct_answer)
+            let answers = []
+            if(entry.type === 'boolean'){
+                answers = ['True', 'False']
+            } else {
+                const randomIdx = Math.floor(Math.random() * (entry.incorrect_answers.length + 1))
+                answers = [...entry.incorrect_answers]
+                answers.splice(randomIdx, 0, entry.correct_answer)
+            }
             entry.answers = answers
             return entry
         })
 
         return data
     }
-
-    function setQuestionsInHome(data){
-        setQuestions(data)
-    }
-
 
     function handleHome(){
         setQuestions({ results: [] })
@@ -74,7 +74,12 @@ export function App() {
                 if (!res.ok) {
                     throw new Error(`Fail to fetch categories.`)
                 }
-                setCategories(data.trivia_categories)
+                
+                // Sort the categories alphabetically
+                const sortedData = data.trivia_categories.sort((a,b) => {
+                    return a.name.localeCompare(b.name)
+                })
+                setCategories(sortedData)
             }
             fetchCategories()
         }
@@ -96,7 +101,7 @@ export function App() {
                 />
                 : <Home
                     fetchQuestions={fetchQuestions}
-                    setQuestionsInHome={setQuestionsInHome}
+                    setQuestionsInHome={setQuestions}
                     questions={questions}
                     categories={categories}
                     errorMsg={errorMsg}

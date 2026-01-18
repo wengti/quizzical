@@ -1,8 +1,9 @@
 import { useState, useMemo, useRef, useEffect } from 'react'
+import { useReward } from 'react-rewards'
 import { decode } from 'html-entities'
 import { clsx } from 'clsx'
 
-export function Quiz({ questions: appQuestions, fetchQuestions, categories: availableCategories, errorMsg, handleHome}) {
+export function Quiz({ questions: appQuestions, fetchQuestions, categories: availableCategories, errorMsg, handleHome }) {
 
     // State
     const [questions, setQuestions] = useState(appQuestions)
@@ -11,6 +12,18 @@ export function Quiz({ questions: appQuestions, fetchQuestions, categories: avai
     const [disableRadio, setDisableRadio] = useState(false) //Freeze button when loading
     const [errorCode, setErrorCode] = useState(0)
     const [isAnswerSubmitted, setIsAnswerSubmitted] = useState(false)
+    const [isForceSubmitted, setIsForceSubmitted] = useState(false)
+
+
+    // Time
+    const timeGivenPerQuestions = 5000 // - miliseconds 
+    const initialTimeLeft = appQuestions.results.length * timeGivenPerQuestions //- each question gets 5s
+    const [timeLeft, setTimeLeft] = useState(initialTimeLeft)
+    const timeLeftSecond = String(Math.floor((timeLeft % (60 * 1000)) / 1000)).padStart(2, "0")
+    const timeLeftMinute = String(Math.floor((timeLeft / (60 * 1000)))).padStart(2, "0")
+
+    const timerRef = useRef(null)
+
 
     // Ref
     const btnRefs = useRef({})
@@ -19,8 +32,55 @@ export function Quiz({ questions: appQuestions, fetchQuestions, categories: avai
         btnRefs.current[name] = node
     }
 
-    const errorMsgEl = useRef(null)
+    // Deduce the game config from the current questions
+    const amount = questions.results.length
+    const difficulty = questions.results[0].difficulty
+    const uniqueCategory = [...new Set(questions.results.map(result => decode(result.category)))]
+    const category = uniqueCategory.length > 1
+        ? "Mixed"
+        : uniqueCategory[0]
 
+
+    // Derived State - isWon should always be used in combination with score >= 0, makes
+    // it a condition that will only be checked after the game has been concluded.
+    let isWon = ""
+    if (score > (questions.results.length * 0.5) && timeLeft >= 0 && !isForceSubmitted) {
+        isWon = true
+    } else if (timeLeft <= 0) {
+        isWon = false
+
+        if (!isForceSubmitted) {
+            handleCheckAnswer() // queue for another re-render
+            setTimeLeft(0) //So this condition doesnt get infinite-looped
+            setIsForceSubmitted(true)
+        }
+    }
+
+    // rain effect to be used
+    const { reward: winEffect, isAnimating: isWinEffectAnimating } = useReward(
+        'rewardEl',
+        'emoji',
+        {
+            angle: 270,
+            spread: 180,
+            startVelocity: 10,
+            emoji: ['🤓', '😊', '🥳']
+        }
+    )
+    const { reward: loseEffect, isAnimating: isLoseEffectAnimating } = useReward(
+        'rewardEl',
+        'emoji',
+        {
+            angle: 270,
+            spread: 180,
+            startVelocity: 10,
+            emoji: ['🗑️', '😠', '😡']
+        }
+    )
+
+    // --------
+    // Elements
+    // --------
 
     // useMemo so it doesnt simply get re-rendered every single time
     const questionElements = useMemo(() => {
@@ -72,9 +132,22 @@ export function Quiz({ questions: appQuestions, fetchQuestions, categories: avai
 
     const actionElements = useMemo(() => {
         if (score >= 0) {
+
+            const lessThanHalf = (score <= (questions.results.length * 0.5)) ? "Scoring less than 50%" : ""
+            const outOfTime = isForceSubmitted ? "Running out of time" : ""
+            const loseReasons = outOfTime ? lessThanHalf + " & " + outOfTime : lessThanHalf
+
             return (
                 <>
-                    <p className='score-msg'>You scored {score}/{questions.results.length} correct answers</p>
+                    {isWon
+                        ? <p className='score-msg win-msg'>You Won!</p>
+                        :
+                        <>
+                            <p className='score-msg lose-msg'>You lose!</p>
+                            <p className='score-msg lose-msg'>{loseReasons}...</p>
+                        </>
+                    }
+                    <p className='score-msg main-msg'>You scored {score}/{questions.results.length} correct answers</p>
                     <div className='end-action-container'>
                         <button
                             onClick={handlePlayAgain}
@@ -122,13 +195,19 @@ export function Quiz({ questions: appQuestions, fetchQuestions, categories: avai
     })
 
 
+    // ---------
+    // Functions
+    // ---------
     function handleCheckAnswer() {
+        clearInterval(timerRef.current) //STOP TIMER
+
         let tempScore = 0
         for (let i = 0; i < selectedAnswers.length; i++) {
             if (selectedAnswers[i] === questions.results[i].correct_answer) {
                 tempScore++
             }
         }
+
         setScore(tempScore)
         setDisableRadio(true)
         setIsAnswerSubmitted(true)
@@ -145,13 +224,6 @@ export function Quiz({ questions: appQuestions, fetchQuestions, categories: avai
     }
 
     async function handlePlayAgain() {
-        // Deduce the game config from the current questions
-        const amount = questions.results.length
-        const difficulty = questions.results[0].difficulty
-        const uniqueCategory = [...new Set(questions.results.map(result => result.category))]
-        const category = uniqueCategory.length > 1
-            ? "Mixed"
-            : uniqueCategory[0]
 
         // Disabled the btn
         for (let btnEl of Object.values(btnRefs.current)) {
@@ -160,12 +232,11 @@ export function Quiz({ questions: appQuestions, fetchQuestions, categories: avai
         const fetchedQuestions = await fetchQuestions(amount, difficulty, category, availableCategories)
         if (fetchedQuestions.response_code > 0) {
             console.log('Problems with fetching...')
-            console.log(errorMsgEl.current)
 
         } else {
             console.log('Done fetching...')
             setQuestions(fetchedQuestions)
-            resetGameState()
+            resetGameState(fetchedQuestions.results.length)
         }
 
         // Enabled the btn
@@ -175,18 +246,38 @@ export function Quiz({ questions: appQuestions, fetchQuestions, categories: avai
         setErrorCode(fetchedQuestions.response_code)
     }
 
-    function resetGameState() {
+    function resetGameState(numberOfQuestions) {
         setIsAnswerSubmitted(false)
+        setIsForceSubmitted(false)
         setScore(-1)
         setSelectedAnswers(new Array(questions.results.length).fill(""))
         setDisableRadio(false)
+        setTimeLeft(numberOfQuestions * timeGivenPerQuestions)
+        const now = new Date()
+        startTimer(now)
     }
 
+    function startTimer(startTime) {
+        const intervalId = setInterval(() => {
+            setTimeLeft(initialTimeLeft - (new Date() - startTime))
+        }, 100)
+        timerRef.current = intervalId
+    }
 
 
     // ------
     // Effect
     // ------
+
+    // To start time upon loading
+    useEffect(() => {
+        if (!timerRef.current) {
+            const now = new Date()
+            startTimer(now)
+        }
+    }, [])
+
+    // To scroll
     useEffect(() => {
 
         if (isAnswerSubmitted) {
@@ -203,10 +294,29 @@ export function Quiz({ questions: appQuestions, fetchQuestions, categories: avai
 
     }, [isAnswerSubmitted, errorCode])
 
+    // To render confetti
+    useEffect(() => {
+        if (score >= 0 && isWon && !isWinEffectAnimating) {
+            winEffect()
+        } else if (score >= 0 && !isWon && !isLoseEffectAnimating) {
+            loseEffect()
+        }
+    }, [score, isWon])
+
+    // ------
+    // Return
+    // ------ 
+
     return (
         <>
+            <div id='rewardEl'></div>
             <h1>Quizzical</h1>
-            <p>Explore the world of unknown through quizzes!</p>
+            <p className='subtitle bottom-subtitle'>Win by scoring more than 50% and within time of 5s per questions.</p>
+            <div className='game-info-container'>
+                <p>Difficulty: {difficulty[0].toUpperCase() + difficulty.slice(1)}</p>
+                <p>Category: {category}</p>
+            </div>
+                <p className='timer'>Time: {timeLeftMinute}:{timeLeftSecond}</p>
             <section className='question-form'>
                 <div className='question-form-inner'>
                     {questionElements}
@@ -216,8 +326,8 @@ export function Quiz({ questions: appQuestions, fetchQuestions, categories: avai
                 {actionElements}
                 {
                     errorCode > 0
-                        ? <p className="error-msg" ref={errorMsgEl}>Error: {errorMsg[errorCode]}. Please try again.</p>
-                        : <p className="error-msg" ref={errorMsgEl}></p>
+                        ? <p className="error-msg">Error: {errorMsg[errorCode]}. Please try again.</p>
+                        : <p className="error-msg"></p>
                 }
             </div>
 
